@@ -343,11 +343,11 @@ Contributions are welcome! Please see our [Contributing Guidelines](docs/contrib
 
 <div align="center">
 
-Created by **[Sergey Bulaev](https://t.me/sergiobulaev)**
+Created by **[Sergey Bulaev](https://www.bulaev.net)**
 
-Follow my Telegram channel for more AI & tech projects
-
-[![Telegram](https://img.shields.io/badge/Follow-@sergiobulaev-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/sergiobulaev)
+[![Website](https://img.shields.io/badge/Website-bulaev.net-4285F4?style=for-the-badge&logo=google-chrome&logoColor=white)](https://www.bulaev.net)
+[![LLMIndex](https://img.shields.io/badge/LLM_Benchmark-llmimdex.net-FF6B6B?style=for-the-badge&logo=openai&logoColor=white)](https://llmimdex.net)
+[![Telegram](https://img.shields.io/badge/Telegram-@sergiobulaev-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/sergiobulaev)
 
 </div>
 
