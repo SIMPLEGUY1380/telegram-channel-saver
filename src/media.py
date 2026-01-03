@@ -10,9 +10,10 @@ from datetime import datetime
 from telethon.errors import FloodWaitError, ServerError, TimedOutError
 
 from src.config import (
-    VIDEO_TEMP_DIR, MEDIA_DOWNLOAD_TIMEOUT, MEDIA_DOWNLOAD_RETRY,
+    MEDIA_DOWNLOAD_TIMEOUT, MEDIA_DOWNLOAD_RETRY,
     MEDIA_RETRY_DELAY_BASE, MEDIA_DOWNLOAD_DELAY,
-    CHUNK_SIZE
+    CHUNK_SIZE, get_video_dir,
+    DATE_FORMAT_FILENAME, DATE_FORMAT_DISPLAY
 )
 
 logger = logging.getLogger(__name__)
@@ -40,8 +41,10 @@ async def download_media_safely(client, message, filename, file_size=None):
         'error': None
     }
     
-    # Get target file path
-    target_path = os.path.join(VIDEO_TEMP_DIR, filename)
+    # Get target file path (uses account-specific directory)
+    video_dir = get_video_dir()
+    os.makedirs(video_dir, exist_ok=True)
+    target_path = os.path.join(video_dir, filename)
     
     # Determine if file is large (over 10MB)
     is_large_file = False
@@ -240,12 +243,12 @@ async def download_video_messages(client, db, db_path, limit=None, round_videos_
         return False
     
     try:
-        # Set up download directory
+        # Set up download directory (uses account-specific directory by default)
         if video_dir:
             download_dir = video_dir
-            os.makedirs(download_dir, exist_ok=True)
         else:
-            download_dir = VIDEO_TEMP_DIR
+            download_dir = get_video_dir()
+        os.makedirs(download_dir, exist_ok=True)
         
         print("\n" + "="*50)
         print(f"Downloading {'round' if round_videos_only else 'all'} videos from channel: {active['title']}")
@@ -313,7 +316,7 @@ async def download_video_messages(client, db, db_path, limit=None, round_videos_
                         continue
                 
                 # Create a filename based on message ID and date
-                filename = f"video_{message.id}_{message.date.strftime('%Y%m%d_%H%M%S')}"
+                filename = f"video_{message.id}_{message.date.strftime(DATE_FORMAT_FILENAME)}"
                 
                 # Get video file size if available
                 file_size = None
@@ -451,9 +454,9 @@ def list_downloaded_videos(db):
         date = video.get('date', 'Unknown')
         if date and date != 'Unknown':
             try:
-                # Parse and format date string
-                date_obj = datetime.fromisoformat(date.split('+')[0])
-                date = date_obj.strftime('%Y-%m-%d %H:%M:%S')
+                # Parse and format date string (handle timezone suffix)
+                date_obj = datetime.fromisoformat(date.replace('+00:00', '').rstrip('Z'))
+                date = date_obj.strftime(DATE_FORMAT_DISPLAY)
             except (ValueError, TypeError):
                 pass
                 

@@ -7,7 +7,7 @@ import logging
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 
-from src.config import EXPORT_DIR
+from src.config import get_export_dir
 from src.channels import get_active_channel
 from src.image_analysis import analyze_image_with_openrouter, analyze_multiple_images
 
@@ -284,9 +284,9 @@ def export_individual_messages(db: Dict[str, Any], include_media_analysis: bool 
             'error': 'No messages to export'
         }
     
-    # Create export directory for this channel
+    # Create export directory for this channel (uses account-specific directory)
     channel_name = sanitize_filename(active['title'])
-    export_path = os.path.join(EXPORT_DIR, f"{channel_name}_{channel_id}")
+    export_path = os.path.join(get_export_dir(), f"{channel_name}_{channel_id}")
     os.makedirs(export_path, exist_ok=True)
     
     # Track processed media groups to avoid duplicates

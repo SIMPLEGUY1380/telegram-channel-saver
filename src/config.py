@@ -13,6 +13,11 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+# Date format constants
+DATE_FORMAT_WITH_TZ = "%Y-%m-%d %H:%M:%S%z"  # Format with timezone info
+DATE_FORMAT_DISPLAY = "%Y-%m-%d %H:%M:%S"  # Display format without timezone
+DATE_FORMAT_FILENAME = "%Y%m%d_%H%M%S"  # Safe format for filenames
+
 # Batch size and timing settings
 MESSAGES_BATCH_SIZE = 100  # Number of messages to process in one batch
 BATCH_DELAY = 2  # Delay between batches in seconds
@@ -27,9 +32,36 @@ MEDIA_RETRY_DELAY_BASE = 5  # Base delay for retry backoff in seconds
 CHUNK_SIZE = 1024 * 1024  # 1MB chunk size for large downloads
 
 # Directory settings
-TEMP_DIR = 'temp/channel_saver'
-VIDEO_TEMP_DIR = 'temp/videos'  # Directory for storing downloaded videos
-EXPORT_DIR = 'temp/exports'  # Directory for storing exported message files
+# Legacy paths (kept for migration compatibility)
+LEGACY_TEMP_DIR = 'temp/channel_saver'
+LEGACY_VIDEO_DIR = 'temp/videos'
+LEGACY_EXPORT_DIR = 'temp/exports'
+
+# New per-account base directory
+ACCOUNTS_BASE_DIR = 'temp/accounts'
+
+# Backward compatibility aliases
+TEMP_DIR = LEGACY_TEMP_DIR
+VIDEO_TEMP_DIR = LEGACY_VIDEO_DIR
+EXPORT_DIR = LEGACY_EXPORT_DIR
+
+
+def get_video_dir() -> str:
+    """Get video directory for current account context"""
+    from src.account import AccountContext
+    ctx = AccountContext.get_current()
+    if ctx:
+        return ctx.videos_dir
+    return LEGACY_VIDEO_DIR
+
+
+def get_export_dir() -> str:
+    """Get export directory for current account context"""
+    from src.account import AccountContext
+    ctx = AccountContext.get_current()
+    if ctx:
+        return ctx.exports_dir
+    return LEGACY_EXPORT_DIR
 
 # OpenRouter API settings
 OPENROUTER_API_KEY = os.getenv('OPENROUTER_API_KEY')

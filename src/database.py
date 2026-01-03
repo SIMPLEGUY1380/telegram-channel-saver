@@ -7,7 +7,8 @@ import json
 import logging
 from datetime import datetime
 
-from src.config import TEMP_DIR
+from typing import Optional
+from src.config import LEGACY_TEMP_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -62,11 +63,30 @@ def save_database(db_path, db):
     with open(db_path, 'w') as f:
         json.dump(db, f, indent=4, default=str)
 
-def get_db_path():
+def get_db_path(phone: Optional[str] = None) -> str:
     """
-    Get the path to the database file
-    
+    Get the path to the database file.
+
+    Args:
+        phone: Optional phone number for per-account database.
+               If None, uses current account context or legacy path.
+
     Returns:
         str: Path to the database file
     """
-    return os.path.join(TEMP_DIR, 'database.json') 
+    if phone:
+        from src.account import AccountPaths
+        return AccountPaths.for_phone(phone).database_path
+
+    from src.account import AccountContext
+    ctx = AccountContext.get_current()
+    if ctx:
+        return ctx.database_path
+
+    # Legacy fallback
+    return os.path.join(LEGACY_TEMP_DIR, 'database.json')
+
+
+def get_legacy_db_path() -> str:
+    """Get legacy database path for migration purposes"""
+    return os.path.join(LEGACY_TEMP_DIR, 'database.json') 

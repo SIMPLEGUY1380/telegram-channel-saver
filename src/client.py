@@ -9,7 +9,7 @@ from telethon import TelegramClient
 from telethon.errors import SessionPasswordNeededError
 import asyncio
 
-from src.config import TEMP_DIR
+from src.config import LEGACY_TEMP_DIR
 from src.database import save_database
 
 logger = logging.getLogger(__name__)
@@ -76,15 +76,30 @@ async def login(client, phone, force=False):
 
 def get_session_path(phone):
     """
-    Get full path to session file for given phone number
-    
+    Get full path to session file for given phone number.
+    Uses new per-account directory structure.
+
     Args:
         phone: Phone number
-        
+
     Returns:
         str: Path to session file
     """
-    return os.path.join(TEMP_DIR, f'user_{phone}')
+    from src.account import AccountPaths
+    return AccountPaths.for_phone(phone).session_path
+
+
+def get_legacy_session_path(phone):
+    """
+    Get legacy session path for migration purposes.
+
+    Args:
+        phone: Phone number
+
+    Returns:
+        str: Path to legacy session file
+    """
+    return os.path.join(LEGACY_TEMP_DIR, f'user_{phone}')
 
 async def save_session(db, phone, me):
     """
@@ -149,8 +164,9 @@ async def restore_session(db, api_id, api_hash, db_path):
     
     if not active_session:
         return None, None
-        
+
     # Try to restore session
+    client = None
     try:
         phone = active_phone
         client = TelegramClient(

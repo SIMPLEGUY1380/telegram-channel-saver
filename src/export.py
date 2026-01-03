@@ -4,6 +4,7 @@ import logging
 from datetime import datetime
 
 from src.database import save_database
+from src.config import get_export_dir, DATE_FORMAT_WITH_TZ, DATE_FORMAT_DISPLAY
 from src.message_export import export_individual_messages
 
 logger = logging.getLogger(__name__)
@@ -108,8 +109,8 @@ async def format_message_for_export(msg, db, channel_id, client=None):
     # Format date
     date_str = "Unknown date"
     try:
-        date_obj = datetime.strptime(msg.get('date'), "%Y-%m-%d %H:%M:%S%z")
-        date_str = date_obj.strftime("%Y-%m-%d %H:%M:%S")
+        date_obj = datetime.strptime(msg.get('date'), DATE_FORMAT_WITH_TZ)
+        date_str = date_obj.strftime(DATE_FORMAT_DISPLAY)
     except (ValueError, TypeError):
         pass
     
@@ -182,10 +183,14 @@ async def format_message_for_export(msg, db, channel_id, client=None):
     
     return formatted_msg
 
-async def export_channel_messages(db, channel_id, channel_title, export_dir="exports", client=None):
+async def export_channel_messages(db, channel_id, channel_title, export_dir=None, client=None):
     """Export all messages from a channel to a text file"""
     channel_id = str(channel_id)
-    
+
+    # Use account-specific export directory by default
+    if export_dir is None:
+        export_dir = get_export_dir()
+
     # Create export directory if it doesn't exist
     if not os.path.exists(export_dir):
         os.makedirs(export_dir)
@@ -209,7 +214,7 @@ async def export_channel_messages(db, channel_id, channel_title, export_dir="exp
         try:
             date_str = msg.get('date')
             if date_str:
-                date_obj = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S%z")
+                date_obj = datetime.strptime(date_str, DATE_FORMAT_WITH_TZ)
                 messages.append((date_obj, msg))
         except (ValueError, TypeError):
             # If date parsing fails, append to the end
@@ -239,15 +244,19 @@ async def export_channel_messages(db, channel_id, channel_title, export_dir="exp
     print(f"\nExport complete: {message_count} messages exported to {filename}")
     return filename
 
-async def export_user_messages(db, channel_id, channel_title, user_id, export_dir="exports", client=None):
+async def export_user_messages(db, channel_id, channel_title, user_id, export_dir=None, client=None):
     """Export messages from a specific user in a channel"""
     channel_id = str(channel_id)
     user_id = str(user_id)
-    
+
+    # Use account-specific export directory by default
+    if export_dir is None:
+        export_dir = get_export_dir()
+
     # Get user info - try to fetch from API if not in database
     user_info = await get_user_info_for_id(client, channel_id, user_id, db) if client else None
     username = f"user_{user_id}"
-    
+
     if user_info:
         if user_info.get('username'):
             username = user_info.get('username')
@@ -256,7 +265,7 @@ async def export_user_messages(db, channel_id, channel_title, user_id, export_di
             last = user_info.get('last_name', '')
             if first or last:
                 username = f"{first}_{last}".strip('_')
-    
+
     # Create export directory if it doesn't exist
     if not os.path.exists(export_dir):
         os.makedirs(export_dir)
@@ -283,7 +292,7 @@ async def export_user_messages(db, channel_id, channel_title, user_id, export_di
             try:
                 date_str = msg.get('date')
                 if date_str:
-                    date_obj = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S%z")
+                    date_obj = datetime.strptime(date_str, DATE_FORMAT_WITH_TZ)
                     user_messages.append((date_obj, msg))
             except (ValueError, TypeError):
                 # If date parsing fails, append to the end
@@ -427,8 +436,13 @@ async def export_menu(db, client=None):
         print("\nUsers in this channel:")
         print("-" * 50)
         for i, user in enumerate(users[:30], 1):  # Show top 30 users by message count
-            username = user['username'] or f"{user['first_name']} {user['last_name']}"
-            print(f"{i}. {username} - {user['message_count']} messages")
+            if user['username']:
+                display_name = user['username']
+            else:
+                first = user.get('first_name') or ''
+                last = user.get('last_name') or ''
+                display_name = f"{first} {last}".strip() or f"User_{user['id']}"
+            print(f"{i}. {display_name} - {user['message_count']} messages")
         
         if len(users) > 30:
             print(f"... and {len(users) - 30} more users")

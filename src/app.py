@@ -2,22 +2,63 @@
 Main application module for Telegram Channel Saver.
 This is the entry point for the application.
 """
+import json
 import os
+import shutil
 import asyncio
 import logging
 from dotenv import load_dotenv
 from datetime import datetime
 from telethon import TelegramClient
 
-from src.config import logger
-from src.database import load_database, save_database, get_db_path
+from src.config import logger, LEGACY_TEMP_DIR, ACCOUNTS_BASE_DIR
+from src.database import load_database, save_database, get_db_path, get_legacy_db_path
+from src.migration import needs_migration, run_migration
 from src.client import check_authorized, login, restore_session, save_session, get_session_path
+from src.account import AccountContext, AccountPaths
 from src.channels import list_channels, display_channels, select_active_channel, show_active_channel
 from src.users import save_channel_users, show_channel_users_stats, list_saved_users
 from src.messages import save_channel_messages, search_messages, browse_messages
 from src.media import download_video_messages, list_downloaded_videos
 from src.export import export_menu
 from src.search_replace import search_replace_messages, restore_edited_messages, list_edited_messages
+
+
+def validate_phone_number(phone: str) -> bool:
+    """
+    Validate phone number format.
+
+    Args:
+        phone: Phone number string to validate
+
+    Returns:
+        bool: True if valid, False otherwise
+    """
+    if not phone:
+        return False
+
+    # Remove common formatting characters
+    cleaned = phone.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
+
+    # Must start with + for international format
+    if not cleaned.startswith('+'):
+        return False
+
+    # Rest must be digits
+    digits = cleaned[1:]
+    if not digits.isdigit():
+        return False
+
+    # Phone numbers are typically 7-15 digits
+    if len(digits) < 7 or len(digits) > 15:
+        return False
+
+    # Check for path traversal attempts
+    if '..' in phone or '/' in phone or '\\' in phone:
+        return False
+
+    return True
+
 
 class ChannelSaver:
     """Main application class for Telegram Channel Saver"""
@@ -26,124 +67,191 @@ class ChannelSaver:
         """Initialize the application"""
         # Load environment variables from .env file
         load_dotenv()
-        
-        # Database setup
-        self.db_path = get_db_path()
-        self.db = load_database(self.db_path)
-        
+
+        # Database will be loaded after account is determined
+        self.db_path = None
+        self.db = None
+        self.account = None
+
         # Telegram client setup
         try:
             self.api_id = int(os.getenv('API_ID'))
             if not self.api_id:
                 raise ValueError("API_ID not found in environment variables")
-                
+
             self.api_hash = os.getenv('API_HASH')
             if not self.api_hash:
                 raise ValueError("API_HASH not found in environment variables")
-                
+
         except (TypeError, ValueError) as e:
             logger.error(f"Error loading API credentials: {e}")
             print("\nError: Please make sure API_ID and API_HASH are properly set in .env file")
             raise
-            
+
         self.client = None
         self.phone = None
 
+    def _setup_account(self, phone: str):
+        """
+        Set up account context and load account-specific database.
+
+        Args:
+            phone: Phone number for the account
+        """
+        # Set account context (creates directories if needed)
+        self.account = AccountContext.set_account(phone)
+
+        # Update paths for this account
+        self.db_path = self.account.database_path
+        self.db = load_database(self.db_path)
+
+        logger.info(f"Account context set for {phone}")
+
+    def _get_sessions_db(self):
+        """
+        Get database with sessions info for restore/switch operations.
+        Uses legacy DB if it exists, otherwise scans accounts directory.
+
+        Returns:
+            dict: Database with sessions info
+        """
+        # First check legacy database
+        legacy_path = get_legacy_db_path()
+        if os.path.exists(legacy_path):
+            return load_database(legacy_path)
+
+        # Otherwise, build sessions from accounts directory
+        sessions = {}
+
+        if os.path.exists(ACCOUNTS_BASE_DIR):
+            for phone in os.listdir(ACCOUNTS_BASE_DIR):
+                account_dir = os.path.join(ACCOUNTS_BASE_DIR, phone)
+                if os.path.isdir(account_dir):
+                    db_file = os.path.join(account_dir, 'database.json')
+                    if os.path.exists(db_file):
+                        try:
+                            with open(db_file, 'r') as f:
+                                account_db = json.load(f)
+                                if phone in account_db.get('sessions', {}):
+                                    sessions[phone] = account_db['sessions'][phone]
+                        except (json.JSONDecodeError, IOError) as e:
+                            logger.debug(f"Could not load account database for {phone}: {e}")
+
+        return {'sessions': sessions, 'last_login': None}
+
     async def cleanup_sessions(self):
         """Remove invalid sessions"""
-        if not self.db['sessions']:
+        sessions_db = self._get_sessions_db()
+        if not sessions_db.get('sessions'):
             print("\nNo sessions to clean up!")
             return
-            
+
         print("\nChecking sessions validity...")
         invalid = []
-        
-        for phone, session in self.db['sessions'].items():
-            # Skip active session
-            if session['active']:
+
+        for phone, session in sessions_db['sessions'].items():
+            # Skip current session
+            if phone == self.phone:
                 continue
-                
+
             # Try to connect with session
             client = TelegramClient(
                 get_session_path(phone),
                 self.api_id,
                 self.api_hash
             )
-            
+
             try:
                 await client.connect()
                 if not await client.is_user_authorized():
                     invalid.append(phone)
-            except Exception:
+            except Exception as e:
+                logger.debug(f"Session check failed for {phone}: {e}")
                 invalid.append(phone)
             finally:
                 await client.disconnect()
-        
+
         if invalid:
             print(f"\nFound {len(invalid)} invalid sessions")
             if input("Remove them? (y/N): ").lower() == 'y':
                 for phone in invalid:
-                    # Remove session file
+                    # Remove account directory
+                    account_dir = os.path.join(ACCOUNTS_BASE_DIR, phone)
                     try:
-                        os.remove(get_session_path(phone))
-                    except OSError:
-                        pass
-                    # Remove from database
-                    del self.db['sessions'][phone]
-                save_database(self.db_path, self.db)
+                        if os.path.exists(account_dir):
+                            shutil.rmtree(account_dir)
+                            print(f"  Removed account directory: {phone}")
+                    except OSError as e:
+                        print(f"  Error removing {phone}: {e}")
                 print("\nInvalid sessions removed!")
         else:
             print("\nAll sessions are valid!")
 
     async def list_sessions(self):
         """Display all saved sessions"""
-        if not self.db['sessions']:
+        sessions_db = self._get_sessions_db()
+        if not sessions_db.get('sessions'):
             print("\nNo saved sessions found!")
             return
-            
+
         print("\nSaved Sessions:")
         print("--------------")
-        for phone, session in self.db['sessions'].items():
-            status = "ACTIVE" if session['active'] else "inactive"
+        for phone, session in sessions_db['sessions'].items():
+            is_current = phone == self.phone
+            status = "CURRENT" if is_current else ("active" if session.get('active') else "inactive")
             print(f"\nPhone: {phone} [{status}]")
-            print(f"Username: @{session['username']}")
-            print(f"Created: {session['created_at']}")
-            print(f"Last used: {session['last_used']}")
+            print(f"Username: @{session.get('username', 'N/A')}")
+            print(f"Created: {session.get('created_at', 'N/A')}")
+            print(f"Last used: {session.get('last_used', 'N/A')}")
 
     async def switch_session(self):
         """Switch to a different saved session"""
-        if not self.db['sessions']:
+        # Get all available sessions
+        sessions_db = self._get_sessions_db()
+        if not sessions_db.get('sessions'):
             print("\nNo saved sessions found!")
             return False
-            
-        await self.list_sessions()
-        
+
+        # Display available sessions
+        print("\nAvailable Sessions:")
+        print("------------------")
+        for phone, session in sessions_db['sessions'].items():
+            is_current = phone == self.phone
+            status = "CURRENT" if is_current else ("active" if session.get('active') else "inactive")
+            print(f"\nPhone: {phone} [{status}]")
+            print(f"Username: @{session.get('username', 'N/A')}")
+            print(f"Last used: {session.get('last_used', 'N/A')}")
+
         while True:
             phone = input("\nEnter phone number to switch to (or 0 to cancel): ")
             if phone == '0':
                 return False
-                
-            if phone in self.db['sessions']:
+
+            if not validate_phone_number(phone):
+                print("\nInvalid phone number format!")
+                continue
+
+            if phone in sessions_db['sessions']:
                 # Disconnect current client if exists
                 if self.client:
                     await self.client.disconnect()
-                
-                # Update active status
-                for p, s in self.db['sessions'].items():
-                    s['active'] = (p == phone)
-                
-                # Create new client with selected session
+
+                # Switch to new account context
                 self.phone = phone
+                self._setup_account(phone)
+
+                # Create new client with selected session
                 self.client = TelegramClient(
                     get_session_path(phone),
                     self.api_id,
                     self.api_hash
                 )
-                
+
                 await self.client.connect()
                 if await check_authorized(self.client):
-                    # Update last used
-                    self.db['sessions'][phone]['last_used'] = datetime.now()
+                    # Update session info
+                    me = await self.client.get_me()
+                    await save_session(self.db, phone, me)
                     save_database(self.db_path, self.db)
                     print(f"\nSwitched to session: {phone}")
                     return True
@@ -157,39 +265,68 @@ class ChannelSaver:
         """Main entry point"""
         print("\nWelcome to Channel Saver!")
         print("------------------------")
-        
+
+        # Check for legacy data migration
+        if needs_migration():
+            print("\nDetected legacy data format. Running migration...")
+            result = run_migration()
+            if result['success']:
+                print(f"Migration complete! Migrated {len(result['accounts_migrated'])} account(s).")
+            else:
+                print("Migration had errors. Check logs for details.")
+                for err in result['errors']:
+                    print(f"  - {err['phone']}: {err['error']}")
+
         # Ensure clean start
         if self.client:
             await self.client.disconnect()
             self.client = None
-        
+
+        # Get sessions database for restore attempt
+        sessions_db = self._get_sessions_db()
+
         # Try to restore session first
-        self.client, self.phone = await restore_session(self.db, self.api_id, self.api_hash, self.db_path)
+        self.client, self.phone = await restore_session(
+            sessions_db, self.api_id, self.api_hash, None
+        )
         if self.client:
+            # Set up account context for restored session
+            self._setup_account(self.phone)
+            # Update session info in account-specific database
+            me = await self.client.get_me()
+            await save_session(self.db, self.phone, me)
+            save_database(self.db_path, self.db)
             print(f"\nRestored session for {self.phone}")
             relogin = False
         else:
             relogin = True
-        
+
         try:
             if relogin:
                 # New login required
-                self.phone = input('Please enter your phone number (international format): ')
-                
+                while True:
+                    self.phone = input('Please enter your phone number (international format, e.g. +1234567890): ')
+                    if validate_phone_number(self.phone):
+                        break
+                    print("Invalid phone number format. Please use international format starting with +")
+
+                # Set up account context first (creates directories)
+                self._setup_account(self.phone)
+
                 # Create new client
                 self.client = TelegramClient(
                     get_session_path(self.phone),
                     self.api_id,
                     self.api_hash
                 )
-                
+
                 await self.client.connect()
                 me = await login(self.client, self.phone)
-                
+
                 # Save session after successful login
                 await save_session(self.db, self.phone, me)
                 save_database(self.db_path, self.db)
-                
+
                 logger.info(f"Successfully logged in as {me.first_name} (@{me.username})")
                 
             print("\nSuccessfully connected!")
@@ -343,11 +480,15 @@ class ChannelSaver:
                 elif choice == '20':
                     await self.client.log_out()
                     print("\nLogged out successfully!")
-                    if self.phone in self.db['sessions']:
+                    # Clear account data
+                    if self.phone in self.db.get('sessions', {}):
                         del self.db['sessions'][self.phone]
                     self.db['last_login'] = None
                     self.db['active_channel'] = None
                     save_database(self.db_path, self.db)
+                    # Clear account context
+                    AccountContext.clear()
+                    self.account = None
                     break
                 elif choice == '21':
                     break
