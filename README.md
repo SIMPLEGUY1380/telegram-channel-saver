@@ -346,7 +346,7 @@ Contributions are welcome! Please see our [Contributing Guidelines](docs/contrib
 Created by **[Sergey Bulaev](https://www.bulaev.net)**
 
 [![Website](https://img.shields.io/badge/Website-bulaev.net-4285F4?style=for-the-badge&logo=google-chrome&logoColor=white)](https://www.bulaev.net)
-[![LLMIndex](https://img.shields.io/badge/LLM_Benchmark-llmimdex.net-FF6B6B?style=for-the-badge&logo=openai&logoColor=white)](https://llmimdex.net)
+[![LLMIndex](https://img.shields.io/badge/LLM_Benchmark-llmindex.net-FF6B6B?style=for-the-badge&logo=openai&logoColor=white)](https://llmindex.net)
 [![Telegram](https://img.shields.io/badge/Telegram-@sergiobulaev-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/sergiobulaev)
 
 </div>
