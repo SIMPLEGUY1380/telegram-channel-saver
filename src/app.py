@@ -22,6 +22,8 @@ from src.messages import save_channel_messages, search_messages, browse_messages
 from src.media import download_video_messages, list_downloaded_videos
 from src.export import export_menu
 from src.search_replace import search_replace_messages, restore_edited_messages, list_edited_messages
+from src.link_downloader import interactive_download_links
+from src.post_scheduler import post_scheduler_menu
 
 
 def validate_phone_number(phone: str) -> bool:
@@ -357,10 +359,12 @@ class ChannelSaver:
                 print("17. Download videos")
                 print("18. List downloaded videos")
                 print("19. Export messages")
-                print("20. Logout")
-                print("21. Exit")
+                print("20. Schedule posts")
+                print("21. Download videos from links (yt-dlp)")
+                print("22. Logout")
+                print("23. Exit")
 
-                choice = input("\nEnter your choice (1-21): ")
+                choice = input("\nEnter your choice (1-23): ")
                 
                 if choice == '1':
                     me = await self.client.get_me()
@@ -457,11 +461,12 @@ class ChannelSaver:
                     list_edited_messages(self.db)
                 elif choice == '17':
                     print("\nVideo Download Options:")
-                    print("1. Download all videos")
+                    print("1. Download all videos from channel")
                     print("2. Download video circles only (round videos)")
-                    print("3. Back to main menu")
+                    print("3. Download from links file (yt-dlp)")
+                    print("4. Back to main menu")
 
-                    video_choice = input("\nEnter choice (1-3): ")
+                    video_choice = input("\nEnter choice (1-4): ")
 
                     if video_choice == '1':
                         limit = input("\nEnter number of videos to download (or press Enter for all): ")
@@ -472,12 +477,18 @@ class ChannelSaver:
                         limit = int(limit) if limit.strip() else None
                         await download_video_messages(self.client, self.db, self.db_path, limit=limit, round_videos_only=True)
                     elif video_choice == '3':
+                        interactive_download_links()
+                    elif video_choice == '4':
                         continue
                 elif choice == '18':
                     list_downloaded_videos(self.db)
                 elif choice == '19':
                     await export_menu(self.db, self.client)
                 elif choice == '20':
+                    await post_scheduler_menu(self.client, self.db, self.db_path)
+                elif choice == '21':
+                    interactive_download_links()
+                elif choice == '22':
                     await self.client.log_out()
                     print("\nLogged out successfully!")
                     # Clear account data
@@ -490,7 +501,7 @@ class ChannelSaver:
                     AccountContext.clear()
                     self.account = None
                     break
-                elif choice == '21':
+                elif choice == '23':
                     break
                 else:
                     print("\nInvalid choice!")
