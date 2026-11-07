@@ -14,8 +14,10 @@ telegram-channel-saver/
 │   ├── client.py          # Telegram client functions
 │   ├── config.py          # Configuration and constants
 │   ├── database.py        # Database operations
+│   ├── link_downloader.py # Embedded yt-dlp downloader
 │   ├── media.py           # Media handling functions
 │   ├── messages.py        # Message operations
+│   ├── post_scheduler.py  # Post scheduling manager
 │   └── users.py           # User management functions
 ├── temp/                  # Temporary data storage
 │   ├── channel_saver/     # Database and session files
@@ -89,6 +91,22 @@ Media handling functionality:
 - Video download management
 - Media information display
 - Chunked downloads for large files
+
+### src/link_downloader.py
+
+Embedded yt-dlp download functionality:
+- Parses URLs from links files (`links.txt`)
+- Downloads video and clip media directly to specified folders
+- Maintains download history archive (`downloaded.txt`) to skip existing files
+- Fault-tolerant batch execution with error reporting
+
+### src/post_scheduler.py
+
+Telegram post scheduling and publishing:
+- Native MTProto schedule parameter integration for text and media
+- Batch media scheduler with sequential intervals across files
+- Flexible time parsing (relative e.g. `30m`, specific time, or datetime)
+- Active channel verification and pending scheduled posts management
 
 ## Dependencies Between Modules
 

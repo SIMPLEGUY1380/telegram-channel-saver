@@ -117,6 +117,27 @@ This project demonstrates how to build a **personal Telegram client** using the 
 | **Reaction Filter** | Find messages with specific reactions |
 | **Media Filter** | Filter messages that contain media |
 
+### Scheduled Posting
+
+| Feature | Description |
+|---------|-------------|
+| **Native Telegram Scheduling** | Schedule text and media posts delivered via Telegram's cloud scheduler |
+| **Batch Media Scheduling** | Automatically schedule a directory of videos/clips across set intervals |
+| **Clean Filename Captions** | Auto-generates readable captions from filenames (strips IDs and underscores) |
+| **Scheduled Posts Viewer** | List pending scheduled posts for the active channel |
+| **Cancellation Support** | Cancel individual scheduled posts by ID or bulk-cancel all pending posts |
+| **Immediate Post Option** | Post announcements or media directly without delays |
+
+### Video & Clip Downloader (yt-dlp)
+
+| Feature | Description |
+|---------|-------------|
+| **Embedded yt-dlp Engine** | Download video/clips directly within the app without external CLI calls |
+| **Batch Link Processing** | Reads and downloads all URLs from `links.txt` (or custom path) |
+| **Download Archive** | Tracks downloaded videos in `downloaded.txt` to avoid duplicate downloads |
+| **Fault-Tolerant** | Continues on single link failures (`ignore-errors`) and reports summary |
+| **Single URL Mode** | Download individual clips on demand with custom destination folders |
+
 ---
 
 ## Project Structure
@@ -137,7 +158,9 @@ This project demonstrates how to build a **personal Telegram client** using the 
   │   ├── export.py         # Export functionality
   │   ├── formatting.py     # Entity & formatting utilities
   │   ├── media.py          # Media file handling
+  │   ├── link_downloader.py # Embedded yt-dlp clip downloader
   │   ├── messages.py       # Message operations
+  │   ├── post_scheduler.py # Post scheduler and manager
   │   ├── search_replace.py # Search & replace engine
   │   └── users.py          # User tracking
   │
@@ -246,8 +269,10 @@ Options:
 17. Download videos
 18. List downloaded videos
 19. Export messages
-20. Logout
-21. Exit
+20. Schedule posts
+21. Download videos from links (yt-dlp)
+22. Logout
+23. Exit
 ```
 
 ### Example Workflows
@@ -274,6 +299,16 @@ Options:
 3 → Select channel
 19 → Export messages
    → Choose export type
+```
+
+**Download Clips & Schedule Posts:**
+```
+21 → Download videos from links
+   → Reads links.txt (saved to downloads/)
+3  → Select active channel
+20 → Schedule posts
+   → Option 3: Batch schedule media from folder
+   → Set start time (e.g. 30m) and interval (e.g. 120m)
 ```
 
 ---
