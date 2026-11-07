@@ -38,7 +38,8 @@ exports/
 *.session-journal
 .env
 database.json
+downloaded.txt
 
 # OS specific
 .DS_Store
-Thumbs.db 
+Thumbs.db

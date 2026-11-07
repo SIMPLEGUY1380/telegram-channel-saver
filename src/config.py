@@ -31,6 +31,16 @@ MEDIA_DOWNLOAD_RETRY = 3  # Maximum number of retries for failed media downloads
 MEDIA_RETRY_DELAY_BASE = 5  # Base delay for retry backoff in seconds
 CHUNK_SIZE = 1024 * 1024  # 1MB chunk size for large downloads
 
+# Link downloader settings (embedded yt-dlp)
+DEFAULT_LINKS_FILE = 'links.txt'
+DEFAULT_DOWNLOADS_DIR = 'downloads'
+DEFAULT_ARCHIVE_FILE = 'downloaded.txt'
+
+# Scheduled posting settings
+MIN_SCHEDULE_DELAY_SECONDS = 15  # Minimum future delay for Telegram scheduling
+DEFAULT_BATCH_SCHEDULE_INTERVAL_MINUTES = 60  # Default interval between scheduled posts
+SCHEDULE_MAX_FUTURE_DAYS = 365  # Telegram API allows up to ~1 year in future
+
 # Directory settings
 # Legacy paths (kept for migration compatibility)
 LEGACY_TEMP_DIR = 'temp/channel_saver'
@@ -72,4 +82,5 @@ OPENROUTER_TIMEOUT = 30  # Timeout for API requests in seconds
 # Create temp directories if they don't exist
 os.makedirs(TEMP_DIR, exist_ok=True)
 os.makedirs(VIDEO_TEMP_DIR, exist_ok=True)
-os.makedirs(EXPORT_DIR, exist_ok=True) 
+os.makedirs(EXPORT_DIR, exist_ok=True)
+os.makedirs(DEFAULT_DOWNLOADS_DIR, exist_ok=True)
