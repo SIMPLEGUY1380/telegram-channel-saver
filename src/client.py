@@ -180,7 +180,8 @@ async def restore_session(db, api_id, api_hash, db_path):
             # Update last used time
             me = await client.get_me()
             await save_session(db, phone, me)
-            save_database(db_path, db)
+            if db_path:
+                save_database(db_path, db)
             logger.info(f"Restored session for {phone}")
             return client, phone
                 
@@ -189,4 +190,4 @@ async def restore_session(db, api_id, api_hash, db_path):
         if client:
             await client.disconnect()
             
-    return None, None 
+    return None, None

@@ -24,6 +24,7 @@ from src.export import export_menu
 from src.search_replace import search_replace_messages, restore_edited_messages, list_edited_messages
 from src.link_downloader import interactive_download_links
 from src.post_scheduler import post_scheduler_menu
+from src.reddit_scheduler import reddit_automation_menu
 
 
 def validate_phone_number(phone: str) -> bool:
@@ -117,13 +118,16 @@ class ChannelSaver:
         Returns:
             dict: Database with sessions info
         """
-        # First check legacy database
+        # First check legacy database if it actually contains sessions
         legacy_path = get_legacy_db_path()
         if os.path.exists(legacy_path):
-            return load_database(legacy_path)
+            legacy_db = load_database(legacy_path)
+            if legacy_db.get('sessions'):
+                return legacy_db
 
         # Otherwise, build sessions from accounts directory
         sessions = {}
+        last_login = None
 
         if os.path.exists(ACCOUNTS_BASE_DIR):
             for phone in os.listdir(ACCOUNTS_BASE_DIR):
@@ -132,14 +136,16 @@ class ChannelSaver:
                     db_file = os.path.join(account_dir, 'database.json')
                     if os.path.exists(db_file):
                         try:
-                            with open(db_file, 'r') as f:
+                            with open(db_file, 'r', encoding='utf-8') as f:
                                 account_db = json.load(f)
                                 if phone in account_db.get('sessions', {}):
                                     sessions[phone] = account_db['sessions'][phone]
+                                if account_db.get('last_login'):
+                                    last_login = account_db['last_login']
                         except (json.JSONDecodeError, IOError) as e:
                             logger.debug(f"Could not load account database for {phone}: {e}")
 
-        return {'sessions': sessions, 'last_login': None}
+        return {'sessions': sessions, 'last_login': last_login}
 
     async def cleanup_sessions(self):
         """Remove invalid sessions"""
@@ -361,10 +367,11 @@ class ChannelSaver:
                 print("19. Export messages")
                 print("20. Schedule posts")
                 print("21. Download videos from links (yt-dlp)")
-                print("22. Logout")
-                print("23. Exit")
+                print("22. Reddit Video Automation (Check, Download & Schedule)")
+                print("23. Logout")
+                print("24. Exit")
 
-                choice = input("\nEnter your choice (1-23): ")
+                choice = input("\nEnter your choice (1-24): ")
                 
                 if choice == '1':
                     me = await self.client.get_me()
@@ -489,6 +496,8 @@ class ChannelSaver:
                 elif choice == '21':
                     interactive_download_links()
                 elif choice == '22':
+                    await reddit_automation_menu(self.client, self.db, self.db_path)
+                elif choice == '23':
                     await self.client.log_out()
                     print("\nLogged out successfully!")
                     # Clear account data
@@ -501,7 +510,7 @@ class ChannelSaver:
                     AccountContext.clear()
                     self.account = None
                     break
-                elif choice == '23':
+                elif choice == '24':
                     break
                 else:
                     print("\nInvalid choice!")

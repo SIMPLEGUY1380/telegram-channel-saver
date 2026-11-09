@@ -27,6 +27,7 @@ from src.config import (
     logger
 )
 from src.database import save_database
+from src.video_optimizer import optimize_video_for_upload, cleanup_temp_file
 
 # Supported media extensions for auto-detection
 MEDIA_EXTENSIONS = (
@@ -205,6 +206,7 @@ async def schedule_media_post(
 ) -> Any:
     """
     Schedule a media file (photo/video/document) with optional caption.
+    Automatically applies 720p optimization via FFmpeg for videos/GIFs > 5MB.
 
     Args:
         client: Telethon client
@@ -219,12 +221,18 @@ async def schedule_media_post(
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"Media file not found: {file_path}")
 
-    return await client.send_file(
-        entity,
-        file=file_path,
-        caption=caption,
-        schedule=schedule_time
-    )
+    upload_path, is_temp = optimize_video_for_upload(file_path)
+    try:
+        return await client.send_file(
+            entity,
+            file=upload_path,
+            caption=caption,
+            schedule=schedule_time,
+            supports_streaming=True
+        )
+    finally:
+        if is_temp:
+            cleanup_temp_file(upload_path)
 
 
 async def batch_schedule_media(

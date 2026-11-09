@@ -122,6 +122,7 @@ This project demonstrates how to build a **personal Telegram client** using the 
 | Feature | Description |
 |---------|-------------|
 | **Native Telegram Scheduling** | Schedule text and media posts delivered via Telegram's cloud scheduler |
+| **Automatic 720p Optimization** | Videos/GIFs > 5MB are automatically converted to 720p H.264/AAC with faststart streaming via FFmpeg; files ≤ 5MB remain untouched |
 | **Batch Media Scheduling** | Automatically schedule a directory of videos/clips across set intervals |
 | **Clean Filename Captions** | Auto-generates readable captions from filenames (strips IDs and underscores) |
 | **Scheduled Posts Viewer** | List pending scheduled posts for the active channel |
@@ -161,6 +162,8 @@ This project demonstrates how to build a **personal Telegram client** using the 
   │   ├── link_downloader.py # Embedded yt-dlp clip downloader
   │   ├── messages.py       # Message operations
   │   ├── post_scheduler.py # Post scheduler and manager
+  │   ├── reddit_scheduler.py # Reddit video automation scheduler
+  │   ├── video_optimizer.py # Upload-level FFmpeg quality optimizer (720p >5MB)
   │   ├── search_replace.py # Search & replace engine
   │   └── users.py          # User tracking
   │

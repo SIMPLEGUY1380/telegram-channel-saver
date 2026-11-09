@@ -36,16 +36,33 @@ DEFAULT_LINKS_FILE = 'links.txt'
 DEFAULT_DOWNLOADS_DIR = 'downloads'
 DEFAULT_ARCHIVE_FILE = 'downloaded.txt'
 
-# Scheduled posting settings
-MIN_SCHEDULE_DELAY_SECONDS = 15  # Minimum future delay for Telegram scheduling
-DEFAULT_BATCH_SCHEDULE_INTERVAL_MINUTES = 60  # Default interval between scheduled posts
-SCHEDULE_MAX_FUTURE_DAYS = 365  # Telegram API allows up to ~1 year in future
-
 # Directory settings
 # Legacy paths (kept for migration compatibility)
 LEGACY_TEMP_DIR = 'temp/channel_saver'
 LEGACY_VIDEO_DIR = 'temp/videos'
 LEGACY_EXPORT_DIR = 'temp/exports'
+
+# Scheduled posting settings
+MIN_SCHEDULE_DELAY_SECONDS = 15  # Minimum future delay for Telegram scheduling
+DEFAULT_BATCH_SCHEDULE_INTERVAL_MINUTES = 60  # Default interval between scheduled posts
+SCHEDULE_MAX_FUTURE_DAYS = 365  # Telegram API allows up to ~1 year in future
+
+# Reddit Automation settings
+DEFAULT_REDDIT_SUBREDDITS = [
+    'https://www.reddit.com/r/tits/',
+    'https://www.reddit.com/r/boobs/',
+    'https://www.reddit.com/r/amazingtits/',
+    'https://www.reddit.com/r/BestTits/',
+    'https://www.reddit.com/r/B_Cups/'
+]
+DEFAULT_REDDIT_CHECK_INTERVAL_SECONDS = 2 * 3600  # 2 hours
+DEFAULT_REDDIT_POSTS_PER_DAY = 3
+DEFAULT_REDDIT_DAILY_SLOTS = [(0, 0), (8, 0), (16, 0)]  # 00:00, 08:00, 16:00
+REDDIT_DOWNLOADS_DIR = os.path.join(DEFAULT_DOWNLOADS_DIR, 'reddit')
+REDDIT_PENDING_DIR = os.path.join(REDDIT_DOWNLOADS_DIR, 'pending')
+REDDIT_SCHEDULED_DIR = os.path.join(REDDIT_DOWNLOADS_DIR, 'scheduled')
+REDDIT_SEEN_POSTS_FILE = os.path.join(LEGACY_TEMP_DIR, 'reddit_seen_posts.json')
+REDDIT_ARCHIVE_FILE = os.path.join(REDDIT_DOWNLOADS_DIR, 'reddit_archive.txt')
 
 # New per-account base directory
 ACCOUNTS_BASE_DIR = 'temp/accounts'
@@ -79,8 +96,18 @@ OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 OPENROUTER_MODEL = "openai/gpt-4o-mini"  # Default model for image analysis
 OPENROUTER_TIMEOUT = 30  # Timeout for API requests in seconds
 
+# Video quality and optimization settings (Upload-level FFmpeg)
+VIDEO_QUALITY_THRESHOLD_BYTES = int(os.getenv('VIDEO_QUALITY_THRESHOLD_BYTES', 5 * 1024 * 1024))  # 5MB
+VIDEO_TARGET_RESOLUTION = int(os.getenv('VIDEO_TARGET_RESOLUTION', 720))  # 720p
+FFMPEG_CRF = int(os.getenv('FFMPEG_CRF', 23))
+FFMPEG_PRESET = os.getenv('FFMPEG_PRESET', 'fast')
+OPTIMIZED_TEMP_DIR = os.path.join(TEMP_DIR, 'optimized')
+
 # Create temp directories if they don't exist
 os.makedirs(TEMP_DIR, exist_ok=True)
 os.makedirs(VIDEO_TEMP_DIR, exist_ok=True)
 os.makedirs(EXPORT_DIR, exist_ok=True)
 os.makedirs(DEFAULT_DOWNLOADS_DIR, exist_ok=True)
+os.makedirs(REDDIT_PENDING_DIR, exist_ok=True)
+os.makedirs(REDDIT_SCHEDULED_DIR, exist_ok=True)
+os.makedirs(OPTIMIZED_TEMP_DIR, exist_ok=True)

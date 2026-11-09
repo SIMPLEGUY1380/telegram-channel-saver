@@ -39,6 +39,7 @@ exports/
 .env
 database.json
 downloaded.txt
+links.txt
 
 # OS specific
 .DS_Store

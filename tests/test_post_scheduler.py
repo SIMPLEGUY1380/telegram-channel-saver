@@ -188,6 +188,44 @@ class TestPostScheduler(unittest.TestCase):
         import asyncio
         asyncio.run(self._async_test_batch_schedule_media())
 
+    async def _async_test_schedule_media_post_over_5mb(self):
+        """Async test for scheduling media post over 5MB triggering optimization."""
+        client = AsyncMock()
+        client.send_file = AsyncMock(return_value=MagicMock(id=303))
+        sched_time = self.fixed_now + timedelta(hours=2)
+
+        with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as orig_f:
+            orig_path = orig_f.name
+            orig_f.write(b"data")
+
+        with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as opt_f:
+            opt_path = opt_f.name
+            opt_f.write(b"opt_data")
+
+        with patch('src.post_scheduler.optimize_video_for_upload', return_value=(opt_path, True)):
+            try:
+                res = await schedule_media_post(client, "12345", orig_path, sched_time, caption="test")
+                self.assertEqual(res.id, 303)
+                client.send_file.assert_awaited_once_with(
+                    "12345",
+                    file=opt_path,
+                    caption="test",
+                    schedule=sched_time,
+                    supports_streaming=True
+                )
+                # Verify temporary optimized file is cleaned up
+                self.assertFalse(os.path.exists(opt_path))
+            finally:
+                if os.path.exists(orig_path):
+                    os.remove(orig_path)
+                if os.path.exists(opt_path):
+                    os.remove(opt_path)
+
+    def test_schedule_media_post_over_5mb(self):
+        """Synchronous wrapper for schedule media over 5MB test."""
+        import asyncio
+        asyncio.run(self._async_test_schedule_media_post_over_5mb())
+
     def test_record_scheduled_post(self):
         """Test database recording of scheduled posts."""
         db = {}

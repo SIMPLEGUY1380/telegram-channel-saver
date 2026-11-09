@@ -124,7 +124,7 @@ def get_ydl_options(
         'paths': {'home': output_dir},
         'download_archive': archive_file,
         'ignoreerrors': ignore_errors,
-        'outtmpl': os.path.join(output_dir, '%(title)s [%(id)s].%(ext)s'),
+        'outtmpl': '%(title)s [%(id)s].%(ext)s',
         'no_warnings': False,
         'quiet': quiet,
     }
